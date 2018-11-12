@@ -1,0 +1,36 @@
+%% This is how I figured out how to set the quotas that would match both the US population
+%% and my incorrectly-quota'ed first sample
+%% but also it doesn't matter because pretty sure this is wrong
+
+conservatives = [];
+liberals = [];
+other = [];
+chisqUS = [];
+chisqEFA = [];
+for c = 50:400
+    for l = 50:400
+        if 500-(c+l)>0
+            conservatives = [conservatives; c];
+            liberals = [liberals; l];
+            other = [other; 500-(c+l)];
+            % these expected numbers are based on the US population breakdown according to
+            % a 2016 Gallup poll
+            chisqUS = [chisqUS; ((c-180)^2/180) + ((l-125)^2/125) + ((500-(c+l)-195)^2/195)];
+            % and in the first sample, liberals = 123, conservatives = 133, and moderate/other = 211
+            % so applied to a 500 sample, that's...
+            chisqEFA = [chisqEFA; ((c-142.3983)^2/142.3983) + ((l-131.6916)^2/131.6916) + ((500-(c+l)-225.9101)^2/225.9101)];
+        end
+    end
+end
+
+A = fopen('chisq.txt','a');
+fprintf(A,'#cons\t#libs\t#other\tchisqUS\tchisqEFA\n');
+
+for z = 1:length(chisqUS)
+    if chisqUS(z)<5.9915 && chisqEFA(z)<5.9915  % at 5.9914 the chi square value for df=2 becomes non-significant
+        fprintf(A,'%i\t%i\t%i\t%f\t%f\n',conservatives(z),liberals(z),other(z),chisqUS(z),chisqEFA(z))
+    end
+end
+
+fclose('all')
+clear all
