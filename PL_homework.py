@@ -4,6 +4,15 @@ Created on Mon Apr 29 15:53:27 2019
 
 @author: ekh9
 """
+# https://cdr.ffiec.gov/public/PWS/DownloadBulkData.aspx
+
+
+# automate a pipeline where you smush things together if they are in redundant columns (like the assets and assets.1 in rck)
+# split up categorical variables and continuous
+# do some feature selection on the continuous variables
+
+
+
 
 # ideally I'd have a way to automate the scraping
 # but right now I'm just downloading it by hand like a sucker
