@@ -26,6 +26,7 @@ from sklearn.feature_selection import VarianceThreshold
 
 #path = "C:/Users/ekh9/Desktop/PL_interview/FFIEC CDR Bulk All UBPR Stats 2018"
 path = "C:/Users/ekh9/Desktop/PL_interview/FFIEC CDR Call Bulk All Schedules 12312018"
+path = "/Users/eleanorhanna/Desktop/job_search_20192020/industry/PrecisionLender_homework/FFIEC CDR Call Bulk All Schedules 12312018"
 
 # read in files
 filenames = os.listdir(path)
@@ -54,12 +55,6 @@ for i, filename in enumerate(filenames):
                     data.drop(di,axis=0,inplace=True)
             data.set_index('idx',inplace=True)
         megadf = pd.concat([megadf,data],axis=1,join="inner")
-        
-# just look at stuff in peer group 1
-# first find assets
-for mc in megadf.columns:
-    if "qtly avg of total assets" in mc.lower():
-        print(mc)
         
 # check to make sure these columns are redundant
 x = megadf[["RCK_QTLY AVG OF TOTAL ASSETS","RCRI_QTLY AVG OF TOTAL ASSETS"]]
@@ -98,8 +93,8 @@ smallBanks = megadf[megadf["assets_for_peer_group_assignment"]<50000000]
 # let's try to reduce this down
 # first I will get rid of low-variance features
 
-sel = VarianceThreshold(threshold=(.8 * (1 - .8))) # 80% probability of a given answer
-try:
-    sel.fit_transform(smallBanks)
-except ValueError:
-    smallBanks[]
+def variance(ary):
+    return sum([(a - ary.mean())**2 for a in ary])/(len(ary)-1)
+
+#for sc in smallBanks.columns:
+#    if variance(smallBanks)
