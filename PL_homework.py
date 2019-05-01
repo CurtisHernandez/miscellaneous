@@ -92,10 +92,13 @@ plt.show()
 smallBanks = megadf[megadf["assets_for_peer_group_assignment"]<50000000]
 
 # let's try to reduce this down
-# first I will get rid of low-variance features
+# first I will get rid of features that are missing a lot of observations
 
-def variance(ary):
-    return sum([(a - ary.mean())**2 for a in ary])/(len(ary)-1)
+for i, sc in enumerate(smallBanks.columns):
+    if i % 10 == 0:
+        print("Starting on feature number " + str(i))
+    if smallBanks[sc].count() < .75 * len(smallBanks):
+        smallBanks.drop(sc,axis=1,inplace=True)
 
 cat_features = []
 cont_features = []
@@ -103,12 +106,18 @@ wtf_features = []
 
 for i, sc in enumerate(smallBanks.columns):
     sample = smallBanks.iloc[0, i]
+    print(sample)
+    if i % 10 == 0:
+        print("Starting on feature number " + str(i) + "...")
     if isinstance(sample,(bool,str)) or str(sample).lower()=="true" or str(sample).lower()=="false":
         cat_features.append(sc)
     elif isinstance(sample,(int,np.int64,float)):
         cont_features.append(sc)
     else:
         wtf_features.append(sc)
+
+def variance(ary):
+    return sum([(a - ary.mean())**2 for a in ary])/(len(ary)-1)
 
 #for sc in smallBanks.columns:
 #    if variance(smallBanks)
