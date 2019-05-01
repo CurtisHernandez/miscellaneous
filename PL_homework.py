@@ -84,7 +84,8 @@ pg_hist, bin_edges = np.histogram(megadf["assets_for_peer_group_assignment"],bin
 fig, ax = plt.subplots()
 ax.bar(range(len(pg_hist)),pg_hist,width=1)
 ax.set_xticks([i for i,j in enumerate(pg_hist)])
-ax.set_xticklabels(['PG12-15','PG8-11','PG4-7','PG3','PG2','PG1'])
+ax.set_xticklabels(['PG12:15','PG8:11','PG4:7','PG3','PG2','PG1'])
+############ ADD AXIS LABELS
 plt.show()
 
 # so the vast majority of banks have less than $50 million in total assets last quarter on average
@@ -95,6 +96,19 @@ smallBanks = megadf[megadf["assets_for_peer_group_assignment"]<50000000]
 
 def variance(ary):
     return sum([(a - ary.mean())**2 for a in ary])/(len(ary)-1)
+
+cat_features = []
+cont_features = []
+wtf_features = []
+
+for i, sc in enumerate(smallBanks.columns):
+    sample = smallBanks.iloc[0, i]
+    if isinstance(sample,(bool,str)) or str(sample).lower()=="true" or str(sample).lower()=="false":
+        cat_features.append(sc)
+    elif isinstance(sample,(int,np.int64,float)):
+        cont_features.append(sc)
+    else:
+        wtf_features.append(sc)
 
 #for sc in smallBanks.columns:
 #    if variance(smallBanks)
