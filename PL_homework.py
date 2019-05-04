@@ -1,126 +1,163 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Mon Apr 29 15:53:27 2019
+# GOOD MORNING, ELEANOR.  RUN EACH CHUNK AGAIN AS YOU GO.  SPLIT UP THE THING WHERE IT GETS RID OF LOW-VARIANCE.  SOMEHOW THERE ARE STILL NANS IN YOUR DATA.
 
-@author: ekh9
-"""
-# https://cdr.ffiec.gov/public/PWS/DownloadBulkData.aspx
-
-
-# automate a pipeline where you smush things together if they are in redundant columns (like the assets and assets.1 in rck)
-# split up categorical variables and continuous
-# do some feature selection on the continuous variables
-
-
-
-
-# ideally I'd have a way to automate the scraping
-# but right now I'm just downloading it by hand like a sucker
-
-# first want to get a look at the data
 import os
+
+# two datasets with the same parameters, one from the third quarter of 2018 and one from the fourth quarter of 2018
+path_t1 = "/Users/eleanorhanna/Desktop/precisionLender_homework/FFIEC CDR Call Bulk All Schedules 09302018"
+path_t2 = "/Users/eleanorhanna/Desktop/precisionLender_homework/FFIEC CDR Call Bulk All Schedules 12312018"
+
+# get a list of all the files
+filenames_t1 = os.listdir(path_t1)
+filenames_t2 = os.listdir(path_t2)
+
+# get rid of files that aren't formatted the same
+filenames_t1 = [f for f in filenames_t1 if f.split(".")[-1]=="txt"]
+filenames_t2 = [f for f in filenames_t2 if f.split(".")[-1]=="txt"]
+
+filenames_t1.remove("Readme.txt")
+filenames_t2.remove("Readme.txt")
+
+filenames_t1.remove("FFIEC CDR Call Bulk POR 09302018.txt")
+filenames_t2.remove("FFIEC CDR Call Bulk POR 12312018.txt")
+
+filenames_t1.remove("FFIEC CDR Call Schedule NARR 09302018.txt")
+filenames_t2.remove("FFIEC CDR Call Schedule NARR 12312018.txt")
+
+# check that the lists are the same length 
+print(len(filenames_t1))
+print(len(filenames_t2))
+
 import pandas as pd
 import numpy as np
-import matplotlib.pyplot as plt
-from sklearn.feature_selection import VarianceThreshold
 
-#path = "C:/Users/ekh9/Desktop/PL_interview/FFIEC CDR Bulk All UBPR Stats 2018"
-path = "C:/Users/ekh9/Desktop/PL_interview/FFIEC CDR Call Bulk All Schedules 12312018"
-path = "/Users/eleanorhanna/Desktop/job_search_20192020/industry/PrecisionLender_homework/FFIEC CDR Call Bulk All Schedules 12312018"
+def joinFrames(filenames):
+    for i, filename in enumerate(filenames):
+        designator = filename.split(" ")[10] # so I know which file it was from originally - there are some redundant column names
+        if i==0:
+            alldata = pd.DataFrame.from_csv(filename, sep="\t", header=1)
+            alldata.columns = [designator + "_" + i for i in alldata.columns]
+        else:
+            data = pd.DataFrame.from_csv(filename, sep="\t", header=1)
+            data.columns = [designator + "_" + i for i in data.columns]
+            if isinstance(data.index[0],str)==True: # the index is all strings
+                data["idx"] = data.index
+                for di in list(data.index):
+                    try:
+                        data.loc[di,"idx"] = np.int64(di)
+                    except ValueError:
+                        print(di)
+                        data.drop(di,axis=0,inplace=True)
+                data.set_index('idx',inplace=True)
+            alldata = pd.concat([alldata,data],axis=1,join="inner")
+    return alldata
 
-# read in files
-filenames = os.listdir(path)
-filenames.remove("Readme.txt")
-filenames.remove("FFIEC CDR Call Bulk POR 12312018.txt") # summary, not needed for this analysis
-filenames.remove("FFIEC CDR Call Schedule NARR 12312018.txt") # just notes
+t1_data = joinFrames([path_t1 + "/" + filename for filename in filenames_t1])
+t2_data = joinFrames([path_t2 + "/" + filename for filename in filenames_t2])
+print("")
+print("Number of observations at T1:")
+print(len(t1_data))
+print("Number of observations at T2:")
+print(len(t2_data))
+print("Number of features at T1:")
+print(len(t1_data.columns))
+print("Number of features at T2:")
+print(len(t2_data.columns))
 
-# join the tables
-for i, filename in enumerate(filenames):
-    designator = filename.split(" ")[4] # so I know which file it was from originally - there are some redundant names
-    if i==0:
-        megadf = pd.DataFrame.from_csv(path + "/" + filename, sep="\t", header=1)
-        megadf.dropna(axis=1,how="all",inplace=True)
-        megadf.columns = [designator + "_" + i for i in megadf.columns]
-    else:
-        data = pd.DataFrame.from_csv(path + "/" + filename, sep="\t", header=1)
-        data.dropna(axis=1,how="all",inplace=True)
-        data.columns = [designator + "_" + i for i in data.columns]
-        if filename=='FFIEC CDR Call Schedule RIE 12312018.txt': # the index is all strings
-            data["idx"] = data.index
-            for di in list(data.index):
-                try:
-                    data.loc[di,"idx"] = np.int64(di)
-                except ValueError:
-                    print(di)
-                    data.drop(di,axis=0,inplace=True)
-            data.set_index('idx',inplace=True)
-        megadf = pd.concat([megadf,data],axis=1,join="inner")
-        
-# check to make sure these columns are redundant
-x = megadf[["RCK_QTLY AVG OF TOTAL ASSETS","RCRI_QTLY AVG OF TOTAL ASSETS"]]
-print(len(x.dropna(axis=0,how="all"))==len(x[x["RCK_QTLY AVG OF TOTAL ASSETS"]==x["RCRI_QTLY AVG OF TOTAL ASSETS"]]))
-y = megadf[["RCK_QTLY AVG OF TOTAL ASSETS.1","RCRI_QTLY AVG OF TOTAL ASSETS.1"]]
-print(len(y.dropna(axis=0,how="all"))==len(y[y["RCK_QTLY AVG OF TOTAL ASSETS.1"]==y["RCRI_QTLY AVG OF TOTAL ASSETS.1"]]))
+t1_data.fillna(np.nan,inplace=True)
+t2_data.fillna(np.nan,inplace=True)
 
-megadf.drop(axis=1,labels=["RCRI_QTLY AVG OF TOTAL ASSETS","RCRI_QTLY AVG OF TOTAL ASSETS.1"],inplace=True)
+# are any nans strings or anything?
+print("T1: " + str(sum(["nan" in t1_data[tc].dropna() for tc in t1_data.columns])))
+print("T2: " + str(sum(["nan" in t2_data[tc].dropna() for tc in t2_data.columns])))
 
-# are these the same value but split into two columns?
-rckNans_hdr1 = megadf[np.isnan(megadf["RCK_QTLY AVG OF TOTAL ASSETS"])==False]
-rckNans_hdr2 = megadf[np.isnan(megadf["RCK_QTLY AVG OF TOTAL ASSETS.1"])==False]
+t1_data.replace([np.inf, -np.inf],np.nan,inplace=True)
+t2_data.replace([np.inf, -np.inf],np.nan,inplace=True)
 
-# is every observation in just one or the other?
-print(len([r for r in rckNans_hdr1.index if r in rckNans_hdr2.index]))
-print(len([r for r in rckNans_hdr2.index if r in rckNans_hdr1.index]))
+t1_data = t1_data._get_numeric_data()
+t2_data = t2_data._get_numeric_data()
 
-# yes...so I will combine them into one
-megadf["assets_for_peer_group_assignment"] = megadf["RCK_QTLY AVG OF TOTAL ASSETS"].apply(lambda x: x if np.isnan(x)==False else 0) + megadf["RCK_QTLY AVG OF TOTAL ASSETS.1"].apply(lambda x: x if np.isnan(x)==False else 0)
+print(len(t1_data.columns))
+print(len(t2_data.columns))
 
-# check for nans
-count_nan = len(megadf) - megadf["assets_for_peer_group_assignment"].count()
+# total assets in the t1 data
+rck_t1 = pd.DataFrame.from_csv(path_t1 + "/" + [f for f in filenames_t1 if "rck" in f.lower()][0],sep="\t",header=1)
+rck_t2 = pd.DataFrame.from_csv(path_t2 + "/" + [f for f in filenames_t2 if "rck" in f.lower()][0],sep="\t",header=1)
+#print(rck_t1.columns)
+#print(rck_t2.columns)
+len(rck_t1["QTLY AVG OF TOTAL ASSETS"].dropna()) + len(rck_t1["QTLY AVG OF TOTAL ASSETS.1"].dropna()) == len(rck_t1.index)
+len(rck_t2["QTLY AVG OF TOTAL ASSETS"].dropna()) + len(rck_t2["QTLY AVG OF TOTAL ASSETS.1"].dropna()) == len(rck_t2.index)
+t1_data["assets_for_peer_group_assignment"] = t1_data["RCK_QTLY AVG OF TOTAL ASSETS"].apply(lambda x: x if np.isnan(x)==False else 0) + t1_data["RCK_QTLY AVG OF TOTAL ASSETS.1"].apply(lambda x: x if np.isnan(x)==False else 0)
+t2_data["assets_for_peer_group_assignment"] = t2_data["RCK_QTLY AVG OF TOTAL ASSETS"].apply(lambda x: x if np.isnan(x)==False else 0) + t2_data["RCK_QTLY AVG OF TOTAL ASSETS.1"].apply(lambda x: x if np.isnan(x)==False else 0)
+asset_features_to_drop = ["RCK_QTLY AVG OF TOTAL ASSETS","RCK_QTLY AVG OF TOTAL ASSETS.1","RCRI_QTLY AVG OF TOTAL ASSETS","RCRI_QTLY AVG OF TOTAL ASSETS.1",]
+t1_data.drop(asset_features_to_drop,axis=1,inplace=True)
+t2_data.drop(asset_features_to_drop,axis=1,inplace=True)
 
-# let's see what I even have in terms of peer group options
-bins = [0,50000000,100000000,300000000,1000000000,3000000000]
-pg_hist, bin_edges = np.histogram(megadf["assets_for_peer_group_assignment"],bins)
-fig, ax = plt.subplots()
-ax.bar(range(len(pg_hist)),pg_hist,width=1)
-ax.set_xticks([i for i,j in enumerate(pg_hist)])
-ax.set_xticklabels(['PG12:15','PG8:11','PG4:7','PG3','PG2','PG1'])
-############ ADD AXIS LABELS
-plt.show()
+fiveBillion = 5 * 10**9
+t1_data = t1_data[t1_data["assets_for_peer_group_assignment"]<fiveBillion]
+t2_data = t2_data[t2_data["assets_for_peer_group_assignment"]<fiveBillion]
 
-# so the vast majority of banks have less than $50 million in total assets last quarter on average
-smallBanks = megadf[megadf["assets_for_peer_group_assignment"]<50000000]
-smallBanks.drop(axis=1,labels=["RCK_QTLY AVG OF TOTAL ASSETS","RCK_QTLY AVG OF TOTAL ASSETS.1"],inplace=True)
-
-# let's try to reduce this down
-# first I will get rid of features that are missing a lot of observations
-
-for i, sc in enumerate(smallBanks.columns):
-    if i % 10 == 0:
-        print("Starting on feature number " + str(i))
-    try:
-        if smallBanks[sc].count() < .75 * len(smallBanks):
-            smallBanks.drop(sc,axis=1,inplace=True)
-    except ValueError:
-        pass
-
-cat_features = []
-cont_features = []
-
-for i, sc in enumerate(smallBanks.columns):
-    if i % 10 == 0:
-        print("Starting on feature number " + str(i) + "...")
-    sample = list(smallBanks[sc])[0]
-#    print(sample)
-    if isinstance(sample,(bool,str)) or str(sample).lower()=="true" or str(sample).lower()=="false":
-        cat_features.append(sc)
-    elif isinstance(sample,(int,np.int64,float)):
-        cont_features.append(sc)
-
+# drop features with little variance in the t1 data - WHY DOES THIS TAKE SO LONG
 def variance(ary):
-    return sum([(a - ary.mean())**2 for a in ary])/(len(ary)-1)
+    return sum([(a - ary.mean())**2 for a in list(ary)])/(len(ary)-1)
+
+print("Original number of features in T1 data: " + str(len(t1_data.columns)))
+for i, tc in enumerate(t1_data.columns):
+    if i % 10 == 0:
+        print("Starting on " + str(i))
+    try:
+        if len(set(t1_data[tc]))<3 or variance(t1_data[tc]) < .8 * (1 - .8):
+            t1_data.drop(tc,axis=1,inplace=True)
+    except:
+        pass
+print("Number of features in T1 data after dropping low-variance features: " + str(len(t1_data.columns)))
+
+# drop columns missing 25% or more of their data
+for i, tc in enumerate(t1_data.columns):
+    if i % 10 == 0:
+        print("Starting on feature " + str(i+1))
+    if len(t1_data[tc]) - len(t1_data[tc].dropna()) < .75 * len(t1_data[tc]):
+        t1_data.drop(tc,axis=1,inplace=True)
+    else:
+        t1_data[tc].replace(np.nan,t1_data[tc].mean(),inplace=True)
+print("Number of features dropped after losing features with too few values remaining: " + str(len(t1_data.columns)))
+
+for tc in t1_data.columns:
+    if tc not in t2_data.columns:
+        t1_data.drop(tc,axis=1,inplace=True)
+        
+from sklearn.preprocessing import StandardScaler
+from sklearn.decomposition import PCA
+
+# scale - THIS DOES NOT WORK FOR SOME REASON
+t1_data_scaled = pd.DataFrame(data=StandardScaler().fit_transform(t1_data.values),columns=t1_data.columns,index=t1_data.index)
 
 
 
-#for sc in smallBanks.columns:
-#    if variance(smallBanks)
+# Visualize the scatter of just 2 and see if that gives you an idea of k
+
+
+
+
+# Kmeans; get the right k
+
+
+
+# Figure out the features with the highest effect sizes from a Kruskal-wallis test on those clusters
+def non_parametric_effect_size(h,n):
+    # epsilon squared for kruskal-wallis test
+    return h/((n**2-1)/(n+1))
+
+
+# Train an SVM on the old thing and validate the clusters with the 50-50 test
+
+# Classify
+
+# Test the accuracy of the model on the testing set
+
+# Make predictions for the newer dataframe
+
+# Test that the features that make a difference are different
+
+
+
+#
