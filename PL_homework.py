@@ -188,22 +188,90 @@ pca.drop(outliers_IDs,axis=0,inplace=True)
 t1_data_scaled.drop(outliers_IDs,axis=0,inplace=True)
 
 # cluster; get the right k
-from sklearn.cluster import AgglomerativeClustering, SpectralClustering
+from sklearn.cluster import AgglomerativeClustering
 from sklearn.metrics import silhouette_score
 
-cluster_solution_scores = {k: {clusterType: {dataType: {"labels": [], "silhouette": []} 
-                            for dataType in ["pca","raw"]}
-                            for clusterType in ["agglomerative","kernel-based"]}
+cluster_solution_scores = {k: {dataType: {"labels": [], "silhouette": []} 
+                            for dataType in ["pca","raw"]}                            
                             for k in range(2,11)}
 
 for k in range(2,11):
-    print("Starting on a " + str(k) + "-cluster solution")
-    cluster_solution = SpectralClustering(n_clusters=k).fit(pca.values)        
-    cluster_solution_scores[k]["kernel-based"]["pca"]["labels"] = cluster_solution.labels_
-    cluster_solution_scores[k]["kernel-based"]["pca"]["silhouette"] = silhouette_score(pca,cluster_solution.labels_,metric="euclidean")
-    
+    for dataType, dataType_ in zip(["pca","raw"],[pca,t1_data_scaled]):
+        print("Starting on a " + str(k) + "-cluster solution based on " + dataType + " data")
+        cluster_solution = AgglomerativeClustering(n_clusters=k).fit(dataType_.values)        
+        cluster_solution_scores[k][dataType]["labels"] = cluster_solution.labels_
+        cluster_solution_scores[k][dataType]["silhouette"] = silhouette_score(pca,cluster_solution.labels_,metric="euclidean")
+
+
+plt.plot(list(cluster_solution_scores.keys()),[cluster_solution_scores[k]["raw"]["silhouette"] for k in cluster_solution_scores.keys()],marker="o",color="green",label="raw data")
+plt.plot(list(cluster_solution_scores.keys()),[cluster_solution_scores[k]["pca"]["silhouette"] for k in cluster_solution_scores.keys()],marker="o",color="blue",label="principal components")
+plt.xlabel("Number of clusters (k)")
+plt.ylabel("Silhouette score")
+plt.legend()
+plt.show()
+
+# so for what it's worth it looks like the cluster solution based on raw data has better silhouette scores.  But...
+print("For raw data:")
 for k in range(2,11):
-    print("Silhouette score for " + str(k) + " clusters: " + str(round(cluster_solution_scores[k]["agglomerative"]["raw"]["silhouette"],2)))
+    hist = np.histogram(cluster_solution_scores[k]["raw"]["labels"])
+    print("Minimum cluster size: " + str(hist[0].min()))
+    print("Maximum cluster size: " + str(hist[0].max()))
+    print("Average cluster size: " + str(hist[0].mean()))
+    print("")
+    
+print("For principal components:")
+for k in range(2,11):
+    hist = np.histogram(cluster_solution_scores[k]["pca"]["labels"])
+    print("Minimum cluster size: " + str(hist[0].min()))
+    print("Maximum cluster size: " + str(hist[0].max()))
+    print("Average cluster size: " + str(hist[0].mean()))
+    print("")
+    
+# The takeaway here is that the reason the silhouettes are so good is that there's just one big cluster
+
+# I could try transforming everything
+
+# so it's all bad and I need to transform the variables
+from scipy.stats import skew
+def transformFeatures(df):
+    newdf = df.copy()    
+    for dc in newdf.columns:
+        originalSkew = skew(newdf[dc])
+        if abs(originalSkew) >= 2:
+            sqrtVar = newdf[dc].apply(lambda x: np.sqrt(x + abs(newdf[dc].min()) + .0001))
+            sqrtSkew = skew(sqrtVar)
+            if abs(sqrtSkew) >= 2:
+                logVar = newdf[dc].apply(lambda x: np.log(x + abs(newdf[dc].min()) + .0001))
+                logSkew = skew(logVar)
+                if abs(logSkew) >= 2:
+                    invVar = newdf[dc].apply(lambda x: 1/(x + abs(newdf[dc].min()) + .0001))
+                    invSkew = skew(invVar)
+                    if abs(invSkew) >= 2:
+                        print("Variable " + dc + " could not be normalized and was dropped")
+                        newdf.drop(dc,axis=1,inplace=True)
+                    else:
+                        #newdf[dc + "_inverse_transformed"] = StandardScaler().fit_transform(invVar.values)
+                        newdf[dc + "_inverse_transformed"] = invVar
+                        newdf.drop(dc,axis=1,inplace=True)
+                else:
+                    #newdf[dc + "_log_transformed"] = StandardScaler().fit_transform(logVar.values)
+                    newdf[dc + "_log_transformed"] = logVar
+                    newdf.drop(dc,axis=1,inplace=True)
+            else:
+                #newdf[dc + "_sqrt_transformed"] = StandardScaler().fit_transform(sqrtVar.values)
+                newdf[dc + "_sqrt_transformed"] = sqrtVar
+                newdf.drop(dc,axis=1,inplace=True)
+        else:
+            continue
+    return newdf
+
+transformed_pca = transformFeatures(pca[pca.columns[:10]])
+scaled_transformed_pca = pd.DataFrame(data=)
+
+                             
+
+# finally, I could try to figure out the PCs that are correlated with a particular feature of interest
+
 
 
 
