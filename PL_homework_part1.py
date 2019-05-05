@@ -182,7 +182,7 @@ outliers_IDs = list(pca[pca["outliers"]==1].index)
 outliers_pca = pca.loc[outliers_IDs]
 outliers_t1_data_scaled = t1_data.loc[outliers_IDs]
 outliers = pd.concat([outliers_pca,outliers_t1_data_scaled],axis=1,join="inner")
-outliers.drop("distance_from_centroid",inplace=True)
+outliers.drop("distance_from_centroid",axis=1,inplace=True)
 
 pca.drop(outliers_IDs,axis=0,inplace=True)
 t1_data_scaled.drop(outliers_IDs,axis=0,inplace=True)
@@ -247,50 +247,51 @@ def transformFeatures(df):
                     invVar = newdf[dc].apply(lambda x: 1/(x + abs(newdf[dc].min()) + .0001))
                     invSkew = skew(invVar)
                     if abs(invSkew) >= 2:
-                        print("Variable " + dc + " could not be normalized and was dropped")
-                        newdf.drop(dc,axis=1,inplace=True)
-                    else:
-                        #newdf[dc + "_inverse_transformed"] = StandardScaler().fit_transform(invVar.values)
-                        newdf[dc + "_inverse_transformed"] = invVar
-                        newdf.drop(dc,axis=1,inplace=True)
-                else:
-                    #newdf[dc + "_log_transformed"] = StandardScaler().fit_transform(logVar.values)
-                    newdf[dc + "_log_transformed"] = logVar
-                    newdf.drop(dc,axis=1,inplace=True)
-            else:
-                #newdf[dc + "_sqrt_transformed"] = StandardScaler().fit_transform(sqrtVar.values)
-                newdf[dc + "_sqrt_transformed"] = sqrtVar
-                newdf.drop(dc,axis=1,inplace=True)
+                        print("Variable " + dc + " could not be normalized and was dropped")                        
+                    else:                        
+                        newdf[dc + "_inverse_transformed"] = invVar                        
+                else:                    
+                    newdf[dc + "_log_transformed"] = logVar                    
+            else:                
+                newdf[dc + "_sqrt_transformed"] = sqrtVar                
+            newdf.drop(dc,axis=1,inplace=True)
         else:
             continue
     return newdf
 
 transformed_pca = transformFeatures(pca[pca.columns[:10]])
-scaled_transformed_pca = pd.DataFrame(data=)
+scaled_transformed_pca = pd.DataFrame(data=StandardScaler().fit_transform(transformed_pca.values),
+                                      columns=transformed_pca.columns,index=transformed_pca.index)
 
+for k in cluster_solution_scores.keys():
+    cluster_solution_scores[k]["transformed_pca"] = {"labels": [], "silhouette": []}
+
+for k in range(2,11):
+    print("Starting on a " + str(k) + "-cluster solution based on transformed PCA data")
+    cluster_solution = AgglomerativeClustering(n_clusters=k).fit(scaled_transformed_pca.values)        
+    cluster_solution_scores[k]["transformed_pca"]["labels"] = cluster_solution.labels_
+    cluster_solution_scores[k]["transformed_pca"]["silhouette"] = silhouette_score(scaled_transformed_pca,cluster_solution.labels_,metric="euclidean")
+
+plt.plot(list(cluster_solution_scores.keys()),[cluster_solution_scores[k]["raw"]["silhouette"] for k in cluster_solution_scores.keys()],marker="o",color="green",label="raw data")
+plt.plot(list(cluster_solution_scores.keys()),[cluster_solution_scores[k]["pca"]["silhouette"] for k in cluster_solution_scores.keys()],marker="o",color="blue",label="principal components")
+plt.plot(list(cluster_solution_scores.keys()),[cluster_solution_scores[k]["transformed_pca"]["silhouette"] for k in cluster_solution_scores.keys()],marker="o",color="purple",label="transformed PCA")
+plt.xlabel("Number of clusters (k)")
+plt.ylabel("Silhouette score")
+plt.legend()
+plt.show()
+
+# so for what it's worth it looks like the cluster solution based on raw data has better silhouette scores.  But...
+print("For transformed principal components:")
+for k in range(2,11):
+    hist = np.histogram(cluster_solution_scores[k]["transformed_pca"]["labels"])
+    print("Minimum cluster size: " + str(hist[0].min()))
+    print("Maximum cluster size: " + str(hist[0].max()))
+    print("Average cluster size: " + str(hist[0].mean()))
+    print(hist[0])
+    print("")
                              
+# this doesn't represent much of an improvement so w/e
 
-# finally, I could try to figure out the PCs that are correlated with a particular feature of interest
+# so this cluster analysis was kind of a bust!
+# let me see if it's different if we approach it from another angle
 
-
-
-
-# Figure out the features with the highest effect sizes from a Kruskal-wallis test on those clusters
-def non_parametric_effect_size(h,n):
-    # epsilon squared for kruskal-wallis test
-    return h/((n**2-1)/(n+1))
-
-
-# Train an SVM on the old thing and validate the clusters with the 50-50 test
-
-# Classify
-
-# Test the accuracy of the model on the testing set
-
-# Make predictions for the newer dataframe
-
-# Test that the features that make a difference are different
-
-
-
-#
