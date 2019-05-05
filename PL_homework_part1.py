@@ -35,11 +35,13 @@ def preliminaryDataWrangling(df):
     # are joined, I'm breaking it down for now so I can tell what's going on
     # with these redundant columns
     # if it's not numeric we don't care for now
-    df = df._get_numeric_data()
+    df = df._get_numeric_data()    
     # fill up empty spots with nans
     df.fillna(np.nan,inplace=True)
     # get rid of infinities
     df.replace([np.inf, -np.inf],np.nan,inplace=True)
+    # get rid of booleans
+    df.replace([True,False],np.nan)
     # drop empty columns
     df.dropna(axis=1,how="all",inplace=True)
     return df
@@ -114,6 +116,11 @@ t2_data = joinFrames([path_t2 + "/" + filename for filename in filenames_t2])
 # get rid of redundant columns
 duplicate_column_names = list(set([c for c in t1_data.columns if list(t1_data.columns).count(c) > 1]))
 t1_data.drop(duplicate_column_names,axis=1,inplace=True)
+
+# get rid of columns with just one or two values
+for t1d in t1_data.columns:
+    if len(set(t1_data[t1d].dropna()))<3:
+        t1_data.drop(t1d,axis=1,inplace=True)
 
 print("")
 print("Number of observations at T1:")
@@ -295,3 +302,26 @@ for k in range(2,11):
 # so this cluster analysis was kind of a bust!
 # let me see if it's different if we approach it from another angle
 
+
+
+
+
+# Figure out the features with the highest effect sizes from a Kruskal-wallis test on those clusters
+def non_parametric_effect_size(h,n):
+    # epsilon squared for kruskal-wallis test
+    return h/((n**2-1)/(n+1))
+
+
+# Train an SVM on the old thing and validate the clusters with the 50-50 test
+
+# Classify
+
+# Test the accuracy of the model on the testing set
+
+# Make predictions for the newer dataframe
+
+# Test that the features that make a difference are different
+
+
+
+#
