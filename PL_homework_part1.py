@@ -207,7 +207,7 @@ for k in range(2,11):
         print("Starting on a " + str(k) + "-cluster solution based on " + dataType + " data")
         cluster_solution = AgglomerativeClustering(n_clusters=k).fit(dataType_.values)        
         cluster_solution_scores[k][dataType]["labels"] = cluster_solution.labels_
-        cluster_solution_scores[k][dataType]["silhouette"] = silhouette_score(pca,cluster_solution.labels_,metric="euclidean")
+        cluster_solution_scores[k][dataType]["silhouette"] = silhouette_score(dataType_,cluster_solution.labels_,metric="euclidean")
 
 
 plt.plot(list(cluster_solution_scores.keys()),[cluster_solution_scores[k]["raw"]["silhouette"] for k in cluster_solution_scores.keys()],marker="o",color="green",label="raw data")
