@@ -160,7 +160,7 @@ from sklearn.preprocessing import StandardScaler
 t1_data_scaled = pd.DataFrame(data=StandardScaler().fit_transform(t1_data.values),columns=t1_data.columns,index=t1_data.index)
 
 # drop the low-variance features
-for t1d in t1_data_scaled:
+for t1d in t1_data_scaled.columns:
     if t1_data_scaled[t1d].std() ** 2 < .8 * (1 - .8): # variance threshold suggested by sklearn documentation
         t1_data_scaled.drop(t1d,axis=1,inplace=True)
 
